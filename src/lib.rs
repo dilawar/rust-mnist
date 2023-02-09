@@ -6,8 +6,10 @@ use std::convert::TryFrom;
 use std::fs;
 use std::io;
 use std::io::Read;
+use std::path::PathBuf;
 
 // Filenames
+#[allow(dead_code)]
 const TRAIN_DATA_FILENAME: &str = "train-images-idx3-ubyte";
 const TEST_DATA_FILENAME: &str = "t10k-images-idx3-ubyte";
 const TRAIN_LABEL_FILENAME: &str = "train-labels-idx1-ubyte";
@@ -39,14 +41,15 @@ impl Mnist {
     /// Panics if the MNIST dataset is not present at the specified path, or if the dataset is
     /// malformed.
     #[must_use]
-    pub fn new(mnist_path: &str) -> Mnist {
+    pub fn new(mnist_path: &PathBuf) -> Mnist {
         // Get Training Data.
         info!("Reading MNIST training data.");
-        let train_data = parse_images(&[mnist_path, TRAIN_DATA_FILENAME].concat()).expect(
+        let data_filepath = mnist_path.join(TRAIN_LABEL_FILENAME);
+        let train_data = parse_images(&data_filepath).expect(
             &format!(
-                "Training data file \"{}{}\" not found; did you \
+                "Training data file \"{}\" not found; did you \
                      remember to download and extract it?",
-                mnist_path, TRAIN_DATA_FILENAME,
+                data_filepath.to_string_lossy(),
             )[..],
         );
 
@@ -70,11 +73,12 @@ impl Mnist {
 
         // Get Testing Data.
         info!("Reading MNIST testing data.");
-        let test_data = parse_images(&[mnist_path, TEST_DATA_FILENAME].concat()).expect(
+        let test_filepath = mnist_path.join(TEST_DATA_FILENAME);
+        let test_data = parse_images(&test_filepath).expect(
             &format!(
-                "Test data file \"{}{}\" not found; did you \
+                "Test data file \"{}\" not found; did you \
                      remember to download and extract it?",
-                mnist_path, TEST_DATA_FILENAME,
+                test_filepath.display()
             )[..],
         );
 
@@ -98,14 +102,14 @@ impl Mnist {
 
         // Get Training Labels.
         info!("Reading MNIST training labels.");
-        let (magic_number, num_labels, train_labels) =
-            parse_labels(&[mnist_path, TRAIN_LABEL_FILENAME].concat()).expect(
-                &format!(
-                    "Training label file \"{}{}\" not found; did you \
+        let train_filepath = mnist_path.join(TRAIN_LABEL_FILENAME);
+        let (magic_number, num_labels, train_labels) = parse_labels(&train_filepath).expect(
+            &format!(
+                "Training label file \"{}\" not found; did you \
                      remember to download and extract it?",
-                    mnist_path, TRAIN_LABEL_FILENAME,
-                )[..],
-            );
+                train_filepath.display()
+            )[..],
+        );
 
         // Assert that numbers extracted from the file were as expected.
         assert_eq!(
@@ -119,14 +123,14 @@ impl Mnist {
 
         // Get Testing Labels.
         info!("Reading MNIST testing labels.");
-        let (magic_number, num_labels, test_labels) =
-            parse_labels(&[mnist_path, TEST_LABEL_FILENAME].concat()).expect(
-                &format!(
-                    "Test labels file \"{}{}\" not found; did you \
+        let test_filepath = mnist_path.join(TEST_LABEL_FILENAME);
+        let (magic_number, num_labels, test_labels) = parse_labels(&test_filepath).expect(
+            &format!(
+                "Test labels file \"{}\" not found; did you \
                      remember to download and extract it?",
-                    mnist_path, TEST_LABEL_FILENAME,
-                )[..],
-            );
+                test_filepath.to_string_lossy()
+            )[..],
+        );
 
         // Assert that numbers extracted from the file were as expected.
         assert_eq!(
@@ -151,9 +155,10 @@ impl Mnist {
 ///
 /// # Examples
 /// ```
+/// use std::path::PathBuf;
 /// use rust_mnist::{print_image, Mnist};
 ///
-/// let mnist = Mnist::new("examples/MNIST_data/");
+/// let mnist = Mnist::new(&PathBuf::from("examples").join("MNIST_data"));
 ///
 /// // Print one image (the one at index 5).
 /// print_image(&mnist.train_data[5], mnist.train_labels[5]);
@@ -182,7 +187,7 @@ struct MnistImages {
     images: Vec<[u8; IMAGE_ROWS * IMAGE_COLUMNS]>,
 }
 
-fn parse_images(filename: &str) -> io::Result<MnistImages> {
+fn parse_images(filename: &PathBuf) -> io::Result<MnistImages> {
     // Open the file.
     let images_data_bytes = fs::File::open(filename)?;
     let images_data_bytes = io::BufReader::new(images_data_bytes);
@@ -241,7 +246,7 @@ fn parse_images(filename: &str) -> io::Result<MnistImages> {
     })
 }
 
-fn parse_labels(filename: &str) -> io::Result<(usize, usize, Vec<u8>)> {
+fn parse_labels(filename: &PathBuf) -> io::Result<(usize, usize, Vec<u8>)> {
     let labels_data_bytes = fs::File::open(filename)?;
     let labels_data_bytes = io::BufReader::new(labels_data_bytes);
     let mut buffer_32: [u8; 4] = [0; 4];
